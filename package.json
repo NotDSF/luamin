@@ -1,11 +1,11 @@
 {
   	"name": "luamin",
 	"displayName": "Luamin",
-	"description": "Lua beautifier and minifer, uses luamin.js",
+	"description": "Lua Formatter",
 	"publisher": "dsf",
 	"keywords": ["lua", "luau", "formatter"],
 	"icon": "icon.png",
-	"version": "0.0.1",
+	"version": "0.0.2",
 	"engines": {
 		"vscode": "^1.46.0"
 	},
