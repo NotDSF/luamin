@@ -24,7 +24,9 @@ let Options = [
  */
 function activate(context) {
 	let command = vscode.commands.registerCommand('luamin.luamin', async function () {
-		let Script = vscode.window.activeTextEditor.document.getText();
+		let Editor = vscode.window.activeTextEditor;
+		let Script = Editor.document.getText();
+
 		if (!Script.length) return vscode.window.showErrorMessage("No script content in current file");
 
 		let Type = await vscode.window.showQuickPick([ "Beautify", "Minify", "Uglify" ]);
@@ -44,10 +46,11 @@ function activate(context) {
 			return vscode.window.showErrorMessage(`Failed to ${Type}`);
 		}
 
-		await vscode.workspace.openTextDocument({ content: Output, language: vscode.window.activeTextEditor.document.languageId }); // could be lua or luau
-		vscode.window.showInformationMessage("Completed! Output in new tab");
+		let Range = new vscode.Range(Editor.document.positionAt(0), Editor.document.positionAt(Script.length));
+		await Editor.edit((e) => e.replace(Range, Output));
+		vscode.window.showInformationMessage("Completed!");
 	});
-
+	
 	let Luamin = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 0);
 	Luamin.text = "Luamin";
 	Luamin.command = "luamin.luamin";
