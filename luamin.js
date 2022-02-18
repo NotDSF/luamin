@@ -1,14 +1,11 @@
 /*
-    Stravant thing in js
-    Written by Herrtt (originally by Stravant)
+    discord.gg/boronide
+    Luamin.js | beautify, minify or uglify your Lua scripts!
 */ 
 
 
-// I copied some comments
-// no, it was not worth it
-// please leave me alone
-// I tried to copy+paste all comments, but no. I got bored.
-// Be happy.
+
+// This project is old, stop dming me about bad coding practice. Thanks.
 
 function shuffle(a) {
     for (let i = a.length - 1; i > 0; i--) {
@@ -17,6 +14,23 @@ function shuffle(a) {
     }
     return a;
 }
+
+
+/* wtf herrt why is there a unused hash string func
+function hashString(key) {
+    var hash = 0, i = key.length;
+
+    while (i--) {
+        hash += key.charCodeAt(i);
+        hash += (hash << 10);
+        hash ^= (hash >> 6);
+    }
+    hash += (hash << 3);
+    hash ^= (hash >> 11);
+    hash += (hash << 15);
+    return hash;
+}
+*/
 
 const print = console.log
 const error = console.error
@@ -137,7 +151,7 @@ let Symbols = [
     '+', '-', '*', ')', ';',  
     '/', '^', '%', '#',
     ',', '{', '}', ':',
-    '[', ']', '(','.',
+    '[', ']', '(','.', '`'
 ]
 
 let EqualSymbols = [
@@ -286,7 +300,7 @@ function CreateLuaTokenStream(text) {
             }
         }
         let i_;
-        for (i_ = 0; i_ < tokenBuffer; i_++) {
+        for (i_ = 0; i_ < tokenBuffer.length; i_++) {
             let token = tokenBuffer[i_]
             print(`${token.Type}<${token.Source}>`)
         }
@@ -450,6 +464,23 @@ function CreateLuaTokenStream(text) {
                 }
             }
             token('String')
+        } else if(c1 == '`') {
+            // Hash string
+            while (true) {
+                let c2 = get()
+                if (c2 == '\\') {
+                    let c3 = get()
+                    let esc = CharacterForEscape[c3]
+                    if (esc == null) {
+                        throw (`Invalid Escape Sequence \`${c3}\`.`)
+                    }
+                } else if(c2 == c1) {
+                    break
+                } else if(c2 == "") {
+                    throw ("Unfinished string!")
+                }
+            }
+            token('Hash')
         } else if(AllIdentStartChars.includes(c1)) {
             // Ident or keyword
             while (AllIdentChars.includes(look())) {
@@ -467,18 +498,18 @@ function CreateLuaTokenStream(text) {
             if (c1 == '0' && look() == 'x') {
                 p++
                 // Hex number
-                while (HexDigits.includes(look())) {
+                while (HexDigits.includes(look()) || look() === '_') {
                     p++
                 }
             } else if (c1 == '0' && look() == 'b') {
                 p++
                 // Binary number
-                while (BinaryDigits.includes(look())) {
+                while (BinaryDigits.includes(look()) || look() === '_') {
                     p++
                 }
             } else {
                 // Normal number
-                while (Digits.includes(look())) {
+                while (Digits.includes(look()) || look() === '_') {
                     p++
                 }
 
@@ -493,7 +524,7 @@ function CreateLuaTokenStream(text) {
                 if (look() == 'e' || look() == 'E') {
                     // With exponent
                     p++
-                    if (look() == '-') {
+                    if (look() == '-' || look() == '+') {
                         p++
                     }
                     while (Digits.includes(look())) {
@@ -1785,6 +1816,8 @@ function AddVariableInfo(ast) {
             "ChildScopeList": [],
             "VariableList": [],
             "BeginLocation": markLocation(),
+            "Depth": null,
+            "GetVar": null
         }
         if (currentScope.ParentScope) {
             currentScope.Depth = currentScope.ParentScope.Depth + 1
@@ -1927,12 +1960,14 @@ function AddVariableInfo(ast) {
         "Pre": function(expr) {
             pushScope()
             expr.ArgList.forEach((ident, index) => {
-                let _var = addLocalVar(ident.Source, function(name) {
-                    ident.Source = name
+                let _var = addLocalVar(ident.Source, function(name, d) {
+                    if (!d)
+                        ident.Source = name
                 }, {
                     "Type": "Argument",
-                    "Index": index,
+                    "Index": index
                 })
+                ident.var = _var
             })
         },
 
@@ -2944,11 +2979,20 @@ function StripAst(ast) {
                 stript(chStat.GetFirstToken())
                 let lastChStat = stat.StatementList[i-1]
                 if (lastChStat != null) {
+                    let bannedCombos = {
+                        ')': [ '(', '[' ],
+                        ']': [ '(', '[' ]
+                    }
 
-                    if (stat.SemicolonList[i-1]
-                        && lastChStat.GetLastToken().Source != ")" || chStat.GetFirstToken().Source != ")") 
-                    {
-                        stat.SemicolonList[i-1] = null
+                    if (stat.SemicolonList[i-1]) {
+                        let lastS = lastChStat.GetLastToken().Source
+                        let firstS = chStat.GetFirstToken().Source
+                        //console.log(bannedCombos[lastS], bannedCombos[lastS] !== undefined ? bannedCombos[lastS].includes(firstS) : '', firstS, lastS)
+                        if (bannedCombos[lastS] === null || bannedCombos[lastS] === undefined || !bannedCombos[lastS].includes(firstS)) {
+                            stat.SemicolonList[i-1] = null
+                        } else {
+                            //console.log(lastS, firstS)
+                        }
                     }
 
                     if (!stat.SemicolonList[i-1]) {
@@ -3147,7 +3191,7 @@ function StripAst(ast) {
             joint(stat.Lhs.GetLastToken(), stat.Token_Compound)
             joint(stat.Token_Compound, stat.Rhs.GetFirstToken())
 
-            lastBody = stat.Body
+            //lastBody = stat.Body
         } else if(stat.Type == "AssignmentStat") {
             stat.Lhs.forEach((ex, index) => {
                 stripExpr(ex)
@@ -3456,7 +3500,6 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
 
     solveExpr = function(expr) {
         if (expr.Type == "BinopExpr") {
-
             //if (expr.Lhs != null && canSolve[expr.Lhs.Type] != true) {
                 solveExpr(expr.Lhs)
             //}
@@ -3563,16 +3606,28 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
             let token = expr.Token
             if (token != null) {
                 if (token.Type == "Number") {
-                    let int = parseFloat(token.Source)
-
-                    if (int !== null && isFinite(int))
-                        token.Source = int.toString();
+                    let int = token.Source.toString().split('e')
+                    if (int.length === 2) {
+                        let l = parseFloat(int[0])
+                        let r = parseFloat(int[1])
+                        if (isFinite(l) && isFinite(r) && (l ** r) < 999999999)
+                            token.Source = (l ** r).toString();
+                    }
                 }
 
                 if (token.Type == "String") {
                     token.Source = token.Source.replace(/\\\d+/gi, (got) => {
                         let num = parseFloat(got.substr(1,got.length-1))
-                        if (num && isFinite(num) && ((num >= 97 && num <= 122) || (num >= 65 && num <= 90))) {
+
+                        if (num && isFinite(num) && (
+                            (num >= 97 && num <= 122)
+                            || (num >= 65 && num <= 90)
+                            || (num >= 33 && num <= 47)
+                            || (num >= 58 && num <= 64)
+                            || (num >= 91 && num <= 96)
+                            || (num >= 123 && num <= 126)
+                            ) && num !== 34 && num !== 39 && num !== 92
+                        )  {
                           return String.fromCharCode(num)
                         }
                         
@@ -3596,6 +3651,45 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
             } else if(expr.FunctionArguments.CallType == "TableCall") {
                 solveExpr(expr.FunctionArguments.TableExpr)
             }
+
+
+
+            if (expr.Base.Type === 'ParenExpr'
+                && expr.Base.Expression.Type === 'FunctionLiteral'
+                && expr.FunctionArguments.CallType === 'ArgCall') 
+            {
+                let fLit = expr.Base.Expression
+                expr.FunctionArguments.ArgList.forEach((v, i) => {
+                    let c = expr.FunctionArguments.ArgList[i]
+                    
+
+
+                    if (c !== undefined && (
+                        c.Type == "NumberLiteral" || c.Type == "StringLiteral"
+                        || c.Type == "NilLiteral" || c.Type == "BooleanLiteral"
+                        )) {
+                        
+                        let v = fLit.ArgList[i]
+                        if (v) {
+                            v.var.RenameList.forEach(v => {
+                                v(c.Token.Source, true)
+                            })
+
+                        //console.log(c, expr.FunctionArguments.ArgList)
+                        /*fLit.ArgList.splice(i, 1)
+                        if (fLit.Token_ArgCommaList.length > 0)
+                            fLit.Token_ArgCommaList.shift()
+
+                        expr.FunctionArguments.ArgList.splice(i, 1)
+                        if (expr.FunctionArguments.Token_CommaList.length > 0)
+                            expr.FunctionArguments.Token_CommaList.shift()*/
+                        }
+                        
+                        
+                    }
+                })
+            }
+
         } else if(expr.Type == "FunctionLiteral") {
             solveStat(expr.Body)
         } else if(expr.Type == "VariableExpr") {
@@ -3605,6 +3699,7 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
             if (exprExpr != null && exprExpr.Type == "ParenExpr") {
                 expr.Expression = exprExpr.Expression
             }
+
             solveExpr(expr.Expression)
 
             if(expr.Type == "NumberLiteral" || expr.Type == "StringLiteral"
@@ -3742,8 +3837,15 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
         } else if(stat.Type == "DoStat") {
             solveStat(stat.Body)
 
-            if (stat.Body === null || (stat.Body.Type == "StatList" && stat.Body.StatementList.length == 0)) {
+            if (stat.Body === null || (stat.Body.Type == "StatList" && stat.Body.StatementList.length === 0)) {
                 return stat.Remove()
+            } else if(stat.Body.StatementList.length === 1) {
+                let s = stat.Body.StatementList[0]
+                if (s.Type !== 'ContinueStat'
+                    && s.Type !== 'BreakStat'
+                    && s.Type !== 'ReturnStat') {
+                    //replace(stat, s)
+                }
             }
         } else if(stat.Type == "IfStat") {
             solveExpr(stat.Condition)
@@ -3754,14 +3856,14 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
                 }  
                 solveStat(clause.Body)   
             })
-
+            
             let condition = stat.Condition
             switch (condition.Type) {
                 case "ParenExpr": {
                     condition = condition.Expression
                 }
                 case "BooleanLiteral": {
-                    if (condition == null || condition.Token == null || condition.Token.Source !== "false") {
+                    if (stat.ElseClauseList.length >= 1 || condition == null || condition.Token == null || condition.Token.Source !== "false") {
                         break
                     }
                 }
@@ -3788,6 +3890,20 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
             //throw(`unreachable, type: ${stat.Type}:${stat}`)
         }
     }
+
+
+    /*let cache = [];
+    console.log(JSON.stringify(ast, (key, value) => {
+      if (typeof value === 'object' && value !== null) {
+        // Duplicate reference found, discard key
+        if (cache.includes(value)) return;
+    
+        // Store value in our collection
+        cache.push(value);
+      }
+      return value;
+    }));
+    cache = null;*/
 
     solveStat(ast)
 }
@@ -4078,7 +4194,7 @@ function Uglify(ast) {
 
         let leftover = value - Math.min(value, maxtablelength) // Set max table length to 100
 
-        if (parseFloat(dec) && isFinite(dec)) {
+        if (parseFloat(dec) && isFinite(parseFloat(dec))) {
             leftover += (dec / 10)
         }
     
@@ -4381,6 +4497,7 @@ function Uglify(ast) {
             stript(expr.Token_Dot)
             stript(expr.Field)
         } else if(expr.Type == "IndexExpr") {
+
             uglifyExpr(expr.Base, uglied)
             stript(expr.Token_OpenBracket)
             uglifyExpr(expr.Index, uglied)
@@ -4769,11 +4886,11 @@ function indexToVarName(index) {
     let id = ""
     let d = index % VarStartDigits.length
     index = (index - d) / VarStartDigits.length
-    id = `${id}${VarStartDigits[d + 1]}`
+    id = `${id}${VarStartDigits[d]}`
     while (index > 0) {
         let d = index % VarDigits.length
         index = (index - d) / VarDigits.length
-        id = `${id}${VarDigits[d+1]}`
+        id = `${id}${VarDigits[d]}`
     }
     return id
 }
@@ -5021,10 +5138,10 @@ function UglifyVariables(globalScope, rootScope, renameGlobals) {
 
     let localNumber = 1
     let globalNumber = 1
-    function setVarName(_var, name) {
+    function setVarName(_var, name, d) {
         _var.Name = name
         _var.RenameList.forEach((setter) => {
-            setter(name)
+            setter(name, d)
         })
     }
     if (renameGlobals) {
@@ -5061,7 +5178,7 @@ function UglifyVariables(globalScope, rootScope, renameGlobals) {
 
 // hi
 
-let watermark = `--[[\n\tcode generated using luamin.js, Herrtt#3868\n--]]`
+let watermark = `--discord.gg/boronide, code generated using luamin.js™\n\n`
 
 let luaminp = {}
 
@@ -5089,7 +5206,6 @@ luaminp.Minify = function(scr, options) {
 luaminp.Beautify = function(scr, options) {
     let ast = CreateLuaParser(scr)
     let [glb, root] = AddVariableInfo(ast)
-
     if (options.RenameVariables) {
         BeautifyVariables(glb, root, options.RenameGlobals)
     }
@@ -5151,7 +5267,7 @@ luaminp.Uglify = function(src1, options) {
     
     StripAst(ast2)
 
-    let [glb2, root2] = AddVariableInfo(ast2)
+    let [ glb2, root2 ] = AddVariableInfo(ast2)
     UglifyVariables(glb2, root2, options.RenameGlobals) // This is so fucking slow omg
 
     let result = PrintAst(ast2)
